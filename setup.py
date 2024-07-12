@@ -5,13 +5,13 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="transcribify",
-    version="0.1.0",
+    version="0.1.1",
     author="Luke Hiura",
     author_email="lhiur001@gmail.com",
     description="A tool for transcribing audio files with optional speaker diarization",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/lukehiura/audio_transcriber",
+    url="https://github.com/lukehiura/transcribify",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
