@@ -1,17 +1,13 @@
+# live_transcription
+
 import pyaudio
 import wave
 import threading
-import torch
-from transformers import WhisperProcessor, WhisperForConditionalGeneration
 import numpy as np
 
 class LiveTranscriber:
-    def __init__(self, model_name="openai/whisper-small"):
-        self.processor = WhisperProcessor.from_pretrained(model_name)
-        self.model = WhisperForConditionalGeneration.from_pretrained(model_name)
-        self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.model.to(self.device)
-        
+    def __init__(self, init_transcription_func):
+        self.transcribe = init_transcription_func()
         self.audio = pyaudio.PyAudio()
         self.stream = None
         self.frames = []
@@ -54,13 +50,9 @@ class LiveTranscriber:
             return
         
         audio_data = b''.join(self.frames[-16:])  # Last ~1 second of audio
-        audio_tensor = torch.from_numpy(np.frombuffer(audio_data, dtype=np.int16).flatten().astype(np.float32) / 32768.0)
-        input_features = self.processor(audio_tensor, sampling_rate=16000, return_tensors="pt").input_features
+        audio_array = np.frombuffer(audio_data, dtype=np.int16).flatten().astype(np.float32) / 32768.0
         
-        with torch.no_grad():
-            predicted_ids = self.model.generate(input_features.to(self.device))
-        
-        transcription = self.processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
+        transcription = self.transcribe(audio_array)
         self.transcription += " " + transcription
         return transcription
 

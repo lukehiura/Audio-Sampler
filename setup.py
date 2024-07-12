@@ -32,6 +32,8 @@ setup(
         "PySimpleGUI",
         "Jinja2",
         "pyaudio",
-        "numpy"
+        "numpy",
+        "streamlit",
+        "watchdog",
     ],
 )

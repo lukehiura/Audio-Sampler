@@ -1,57 +1,60 @@
-import torch
-import time
-from transformers import pipeline, AutoProcessor, AutoModelForSpeechSeq2Seq
+# models.py
+
+import logging
 from pyannote.audio import Pipeline
-from huggingface_hub import login
-import subprocess
+import torch
+from transformers import WhisperProcessor, WhisperForConditionalGeneration
 
-transcription_pipeline = None
-diarization_pipeline = None
+import os
+from dotenv import load_dotenv
 
-def hf_login():
-    try:
-        subprocess.run(["huggingface-cli", "login"], check=True)
-        return True
-    except subprocess.CalledProcessError:
-        print("Failed to login using CLI. Please try manual login.")
-        return False
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load environment variables
+load_dotenv()
 
 def initialize_models():
-    global transcription_pipeline, diarization_pipeline
+    device = "cuda" if torch.cuda.is_available() else "cpu"
     
-    try:
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        processor = AutoProcessor.from_pretrained("openai/whisper-large-v3")
-        model = AutoModelForSpeechSeq2Seq.from_pretrained("openai/whisper-large-v3")
-        model.to(device)
+    # Get the Hugging Face access token
+    hf_token = os.getenv("HUGGINGFACE_TOKEN")
+    if not hf_token:
+        logger.error("HUGGINGFACE_TOKEN not found in environment variables.")
+        return None, None
 
-        transcription_pipeline = pipeline(
-            "automatic-speech-recognition",
-            model=model,
-            tokenizer=processor.tokenizer,
-            feature_extractor=processor.feature_extractor,
-            device=device,
-            generate_kwargs={"language": "en"}
-        )
-    except Exception as e:
-        print(f"Error initializing transcription model: {str(e)}")
-        transcription_pipeline = None
-
-    try:
-        diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1",
-                                                        use_auth_token=True)
-        print("Diarization model initialized successfully.")
-    except Exception as e:
-        print(f"Error initializing primary diarization model: {str(e)}")
-        print("Attempting to use alternative model...")
+    # Initialize transcription pipeline (lazy loading)
+    def init_transcription():
         try:
-            # Try an alternative model
-            diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization-3.1",
-                                                            use_auth_token=True)
-            print("Alternative diarization model initialized successfully.")
-        except Exception as e:
-            print(f"Error initializing alternative diarization model: {str(e)}")
-            print("Diarization will not be available.")
-            diarization_pipeline = None
+            processor = WhisperProcessor.from_pretrained("openai/whisper-large-v2")
+            model = WhisperForConditionalGeneration.from_pretrained("openai/whisper-large-v2")
+            model.to(device)
 
-    return transcription_pipeline, diarization_pipeline
+            def transcribe(audio):
+                input_features = processor(audio, sampling_rate=16000, return_tensors="pt").input_features
+                input_features = input_features.to(device)
+                
+                with torch.no_grad():
+                    predicted_ids = model.generate(input_features)
+                
+                transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
+                return transcription[0]
+
+            logger.info("Transcription model initialized successfully.")
+            return transcribe
+        except Exception as e:
+            logger.error(f"Error initializing transcription model: {str(e)}")
+            return None
+
+    # Initialize diarization pipeline (lazy loading)
+    def init_diarization():
+        try:
+            diarization_pipeline = Pipeline.from_pretrained("pyannote/speaker-diarization@2.1",
+                                                            use_auth_token=hf_token)
+            logger.info("Diarization model initialized successfully.")
+            return diarization_pipeline
+        except Exception as e:
+            logger.error(f"Error initializing diarization model: {str(e)}")
+            return None
+
+    return init_transcription, init_diarization

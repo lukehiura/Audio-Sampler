@@ -8,3 +8,7 @@ Jinja2
 PySimpleGUI
 pyaudio
 numpy
+streamlit
+watchdog
+audio_recorder_streamlit
+python-dotenv

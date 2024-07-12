@@ -1,8 +1,10 @@
+# gui.py
+
 import PySimpleGUI as sg
 import threading
 from .transcription import transcribe_audio, diarize_audio
 from .utils import save_to_html
-from .models import initialize_models
+from .models import initialize_models, diarization_pipeline
 from .live_transcription import LiveTranscriber
 
 def create_gui():
@@ -54,11 +56,13 @@ def create_gui():
                     transcription = transcribe_audio(file_path)
                     window.write_event_value('-TRANSCRIPTION-DONE-', transcription)
                     
-                    if values['-DIARIZE-']:
+                    if values['-DIARIZE-'] and diarization_pipeline is not None:
                         window.write_event_value('-DIARIZATION-START-', None)
                         diarization = diarize_audio(file_path)
                         window.write_event_value('-DIARIZATION-DONE-', diarization)
                     else:
+                        if values['-DIARIZE-']:
+                            window.write_event_value('-ERROR-', "Diarization is not available.")
                         window.write_event_value('-PROCESS-COMPLETE-', None)
                 except Exception as e:
                     window.write_event_value('-ERROR-', str(e))

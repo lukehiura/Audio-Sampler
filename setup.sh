@@ -56,15 +56,19 @@ uv pip install setuptools
 echo "Installing audio_transcriber in editable mode..."
 uv pip install -e .
 
+# Install Streamlit
+echo "Installing Streamlit..."
+uv pip install streamlit
+
 echo "Setup complete. Virtual environment is activated."
 echo "To start using the environment, run your Python script or type 'python' to open an interactive shell."
 echo "When you're done, type 'deactivate' to exit the virtual environment."
 
-# Offer to run the example script
-if [ -f examples/simple_gui.py ]; then
-    read -p "Do you want to run the example GUI script now? (y/n) " -n 1 -r
+# Offer to run the Streamlit app
+if [ -f app.py ]; then
+    read -p "Do you want to run the Streamlit app now? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        python examples/simple_gui.py
+        streamlit run app.py
     fi
 fi
