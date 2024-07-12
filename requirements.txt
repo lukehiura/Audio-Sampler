@@ -1,0 +1,10 @@
+torch
+transformers
+datasets
+sounddevice
+pyannote.audio
+pydub
+Jinja2
+PySimpleGUI
+pyaudio
+numpy
